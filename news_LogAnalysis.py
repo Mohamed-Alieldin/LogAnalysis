@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 
 import psycopg2
+import sys
 
+
+# Connecting to the database
+try:
+    db_Conn = psycopg2.connect("dbname=news")
+except psycopg2.error as e:
+    print("Unable to connect to the database")
+    print(e.pgerror)
+    print(e.diag.message_detail)
+    sys.exit(1)
 
 # My root function to connect to the database
-def run_query(query):
-    db_Conn = psycopg2.connect("dbname=news")
-    cursor = db_Conn.cursor()
+def run_query(query , connection):    
+    cursor = connection.cursor()
     cursor.execute(query)
     result = cursor.fetchall()
-    db_Conn.close()
     return (result)
 
 # Request No.1
@@ -19,10 +27,11 @@ inner join log on articles.slug = split_part(log.path,'/',3)
 where split_part(log.path,'/',2) = 'article'
  group by articles.title order by views desc limit 3;'''
 
-popular_articles = run_query(query_1)
+popular_articles = run_query(query_1, db_Conn)
 print("\n The most popular three articles of all time are:")
 for article in popular_articles:
-    print(article[0], "{} views".format(article[1]))
+    element = "\"{}\" with {} views".format(article[0], article[1])
+    print(element)
 
 
 # Request No.2
@@ -37,10 +46,11 @@ select authors.name , c.views || ' views' from authors
 inner join count_per_author c on authors.id = c.author
 order by c.views desc;
 '''
-popular_authors = run_query(query_2)
+popular_authors = run_query(query_2, db_Conn)
 print("\n The most popular article authors of all time are:")
 for author in popular_authors:
-    print(author[0], author[1])
+    element = "\"{}\" with {}".format(author[0], author[1])
+    print(element)
 
 # Request No.3
 # On which days did more than 1% of requests lead to errors?
@@ -62,7 +72,11 @@ from requests
 inner join errors on requests.day = errors.day
 where ((100*errors.error_requests::decimal)/requests.all_requests) > 1;'''
 
-days = run_query(query_3)
+days = run_query(query_3, db_Conn)
 print("\n The days with more than 1% of requests lead to errors are:")
 for day in days:
-    print(day[0], day[1])
+    element = "{} with {}".format(day[0], day[1])
+    print(element)
+
+# Closing the database connection
+db_Conn.close()
