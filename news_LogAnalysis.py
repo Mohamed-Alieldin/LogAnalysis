@@ -13,8 +13,9 @@ except psycopg2.error as e:
     print(e.diag.message_detail)
     sys.exit(1)
 
+
 # My root function to connect to the database
-def run_query(query , connection):    
+def run_query(query, connection):
     cursor = connection.cursor()
     cursor.execute(query)
     result = cursor.fetchall()
