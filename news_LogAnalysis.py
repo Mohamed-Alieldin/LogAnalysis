@@ -4,80 +4,111 @@ import psycopg2
 import sys
 
 
-# Connecting to the database
-try:
-    db_Conn = psycopg2.connect("dbname=news")
-except psycopg2.error as e:
-    print("Unable to connect to the database")
-    print(e.pgerror)
-    print(e.diag.message_detail)
-    sys.exit(1)
+DBNAME = "dbname=news"
 
 
-# My root function to connect to the database
-def run_query(query, connection):
+def db_connect(db):
+    """
+    Create and return a database connection.
+
+    The functions creates and returns a database connection to the
+    database defined by DBNAME.
+    """
+    try:
+        conn = psycopg2.connect(db)
+        return conn
+    except psycopg2.error as e:
+        print("Unable to connect to the database")
+        print(e.pgerror)
+        print(e.diag.message_detail)
+        sys.exit(1)
+
+
+def execute_query(query, connection):
+    """
+    execute_query returns the results of an SQL query.
+
+    execute_query takes an SQL query as a parameter and the db connection,
+    creates a db cursor and
+    executes the query and returns the results as a list of tuples.
+    args:
+    query - an SQL query statement to be executed.
+    connection - a db connection to create the db cursor
+
+    returns:
+    A list of tuples containing the results of the query.
+    """
     cursor = connection.cursor()
     cursor.execute(query)
-    result = cursor.fetchall()
-    return (result)
-
-# Request No.1
-# What are the most popular three articles of all time?
-query_1 = '''select articles.title , cast (count(log.path) as int )as views from articles
-inner join log on articles.slug = split_part(log.path,'/',3)
-where split_part(log.path,'/',2) = 'article'
- group by articles.title order by views desc limit 3;'''
-
-popular_articles = run_query(query_1, db_Conn)
-print("\n The most popular three articles of all time are:")
-for article in popular_articles:
-    element = "\"{}\" with {} views".format(article[0], article[1])
-    print(element)
+    results = cursor.fetchall()
+    return (results)
 
 
-# Request No.2
-# Who are the most popular article authors of all time?
-query_2 = ''' create or replace view count_per_author as
-select author, cast(count(log.path) as int )as views from articles
-inner join log on articles.slug = split_part(log.path,'/',3)
-where split_part(log.path,'/',2) = 'article'
-group by author order by views desc;
+def print_top_articles(connection):
+    """
+    Print out the top 3 articles of all time.
+    args:
+    connection - a db connection to be used in calling
+     the query execution function
+    """
+    query = '''
+    select articles.title , count(log.path) as views from articles
+    inner join log on articles.slug = split_part(log.path,'/',3)
+    where split_part(log.path,'/',2) = 'article'
+    group by articles.title order by views desc limit 3;'''
+    results = execute_query(query, connection)
+    print("\n The most popular three articles of all time are:")
+    for title, views in results:
+        element = "\"{}\" with {} views".format(title, views)
+        print(element)
 
-select authors.name , c.views || ' views' from authors
-inner join count_per_author c on authors.id = c.author
-order by c.views desc;
-'''
-popular_authors = run_query(query_2, db_Conn)
-print("\n The most popular article authors of all time are:")
-for author in popular_authors:
-    element = "\"{}\" with {}".format(author[0], author[1])
-    print(element)
 
-# Request No.3
-# On which days did more than 1% of requests lead to errors?
-query_3 = '''create or replace  view errors as
-select date(time) as day , count(*) as error_requests from log
-where status like '%404%'
-group by day
-order by error_requests desc;
+def print_top_authors(connection):
+    """
+    Print a list of authors ranked by article views.
+    args:
+    connection - a db connection to be used in calling
+     the query execution function
+    """
+    query = '''
+    select authors.name , c.views || ' views' from authors
+    inner join count_per_author c on authors.id = c.author
+    order by c.views desc;
+    '''
+    results = execute_query(query, connection)
+    print("\n The most popular article authors of all time are:")
+    for author, views in results:
+        element = "\"{}\" with {}".format(author, views)
+        print(element)
 
-create or replace view requests as
-select date(time) as day , count(*) as all_requests from log
-group by day
-order by all_requests desc;
 
-select to_char(requests.day, 'Mon dd,yyyy'),
-round(((100*errors.error_requests::decimal)/requests.all_requests::decimal), 2)
-||'% erros' as error_Percentage
-from requests
-inner join errors on requests.day = errors.day
-where ((100*errors.error_requests::decimal)/requests.all_requests) > 1;'''
+def print_errors_over_one(connection):
+    """
+    Print out the error report.
 
-days = run_query(query_3, db_Conn)
-print("\n The days with more than 1% of requests lead to errors are:")
-for day in days:
-    element = "{} with {}".format(day[0], day[1])
-    print(element)
+    This function prints out the days and that day's error percentage where
+    more than 1% of logged access requests were errors.
+    args:
+    connection - a db connection to be used in calling
+     the query execution function
+    """
+    query = '''
+    select to_char(requests.day, 'Mon dd,yyyy'),
+    round(((100*errors.error_requests::decimal)/requests.all_requests
+    ::decimal), 2)||'% erros' as error_Percentage
+    from requests
+    inner join errors on requests.day = errors.day
+    where ((100*errors.error_requests::decimal)/requests.all_requests) > 1;
+    '''
+    results = execute_query(query, connection)
+    print("\n The days with more than 1% of requests lead to errors are:")
+    for day, percentage in results:
+        element = "{} with {}".format(day, percentage)
+        print(element)
 
-# Closing the database connection
-db_Conn.close()
+if __name__ == '__main__':
+    conn = db_connect(DBNAME)
+    print_top_articles(conn)
+    print_top_authors(conn)
+    print_errors_over_one(conn)
+    conn.close()

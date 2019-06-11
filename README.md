@@ -45,6 +45,9 @@ The PostgreSQL database server will automatically be started inside the VM. You 
  `cd` into the `vagrant` directory and use the command `psql -d news -f newsdata.sql`.
  Running this command will connect to your installed database server and execute the SQL commands in the downloaded file, creating tables and populating them with data.
 
+Import the views to the data base by running the following command:
+`psql -d news -f Create_Views.sql`
+
 **Exploring the data**
 The database includes three tables:
 + The `authors` table includes information about the authors of articles.
@@ -56,7 +59,7 @@ You can connect to your database using `psql -d` news and explore the tables usi
 ## Running The APP
 1. Make sure to log into the VM as described above.
 2. Place your source code in the `vagrant` directory.
-3. Use the command `python <yourFileName.py>`
+3. Use the command `python news_LogAnalysis.py`
 
 	
 
