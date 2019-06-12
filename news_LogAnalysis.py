@@ -4,9 +4,6 @@ import psycopg2
 import sys
 
 
-DBNAME = "dbname=news"
-
-
 def db_connect(db):
     """
     Create and return a database connection.
@@ -107,6 +104,7 @@ def print_errors_over_one(connection):
         print(element)
 
 if __name__ == '__main__':
+    DBNAME = "dbname=news"
     conn = db_connect(DBNAME)
     print_top_articles(conn)
     print_top_authors(conn)
